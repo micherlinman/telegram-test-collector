@@ -1,6 +1,7 @@
 services:
   app:
     build: .
+    container_name: telegram-collector
     env_file: .env
     environment:
       TELEGRAM_SESSION: /data/collector
@@ -9,8 +10,16 @@ services:
       MEDIA_DIR: /data/media
     volumes:
       - ./data:/data
-    ports:
-      - "127.0.0.1:8000:8000"
+    # Kein Host-Port: erreichbar nur über Caddy (jstack-core) unter telegram.jcluster.de
+    expose:
+      - "8000"
+    networks:
+      - edge
     restart: unless-stopped
     stdin_open: true
     tty: true
+
+networks:
+  edge:
+    name: jcluster-edge
+    external: true
