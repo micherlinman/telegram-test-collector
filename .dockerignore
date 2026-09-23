@@ -1,0 +1,11 @@
+.env
+.venv/
+.idea/
+.git/
+__pycache__/
+*.session
+*.session-journal
+media/
+data/
+messages.jsonl
+messages.log
