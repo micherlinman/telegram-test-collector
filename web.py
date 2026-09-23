@@ -133,6 +133,9 @@ PAGE = """<!doctype html>
   @media (max-width:600px) {{
     .bar {{ flex-direction:column; align-items:stretch; gap:10px; }}
     .grid {{ grid-template-columns:1fr; }}
+    main {{ padding-top:14px; }}
+    .btn {{ padding:12px; }}
+    .card:hover {{ transform:none; }}
   }}
 </style>
 </head>
@@ -146,7 +149,7 @@ PAGE = """<!doctype html>
     <form method="get" action="/">
       <div class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input type="search" name="q" value="{q}" placeholder="Produkt oder Stichwort suchen …" autofocus>
+        <input type="search" name="q" value="{q}" placeholder="Produkt suchen …" autofocus>
         {clear}
       </div>
     </form>
@@ -244,7 +247,7 @@ def split_title(text: str) -> tuple[str, str]:
     return lines[0].strip(), "\n".join(lines[1:]).strip()
 
 
-def render_message(row: dict, words: list[str]) -> str:
+def render_message(row: dict, words: list[str], eager: bool = False) -> str:
     sender = escape(row["sender_name"] or "?")
     if row["sender_username"]:
         sender += f" · @{escape(row['sender_username'])}"
@@ -269,7 +272,7 @@ def render_message(row: dict, words: list[str]) -> str:
     image = ""
     if row["has_image"]:
         image = (f'<a class="media" href="/image/{row["id"]}" target="_blank">'
-                 f'<img src="/image/{row["id"]}" loading="lazy" alt=""></a>')
+                 f'<img src="/image/{row["id"]}" loading="{"eager" if eager else "lazy"}" alt=""></a>')
 
     fresh = " fresh" if age_days(row["date"]) <= 1 else ""
     return f"""
@@ -307,7 +310,7 @@ async def index(q: str = Query("", max_length=200), seite: int = Query(1, ge=1))
         summary = f'<p class="summary"><strong>{count}</strong> · neueste zuerst</p>'
 
     if rows:
-        results = f'<div class="grid">{"".join(render_message(r, words) for r in rows)}</div>'
+        results = f'<div class="grid">{"".join(render_message(r, words, eager=i < 6) for i, r in enumerate(rows))}</div>'
     elif total:
         results = (f'<div class="empty"><strong>Diese Seite ist leer</strong>'
                    f'<a href="{page_link(query, 1)}">Zurück zur ersten Seite</a></div>')
@@ -341,5 +344,7 @@ async def image(message_pk: int) -> Response:
     data = await db.get_image(message_pk)
     if not data:
         raise HTTPException(status_code=404)
-    return Response(data, media_type="image/jpeg",
+    # Neue Bilder sind WebP, ältere Einträge noch JPEG
+    media_type = "image/webp" if data[8:12] == b"WEBP" else "image/jpeg"
+    return Response(data, media_type=media_type,
                     headers={"Cache-Control": "public, max-age=86400"})

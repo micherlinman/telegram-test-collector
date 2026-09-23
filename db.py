@@ -10,8 +10,8 @@ from psycopg_pool import AsyncConnectionPool
 
 log = logging.getLogger("collector.db")
 
-IMAGE_MAX_SIDE = 800
-IMAGE_JPEG_QUALITY = 70
+IMAGE_MAX_SIDE = 320
+IMAGE_QUALITY = 50
 
 # Leerzeichen und Bindestriche (inkl. Gedankenstriche) zählen bei der Suche nicht:
 # "st-martin", "St Martin" und "StMartin" finden sich gegenseitig.
@@ -79,14 +79,14 @@ RETURNING id
 
 
 def shrink_image(raw: bytes) -> bytes:
-    """Verkleinert auf max. IMAGE_MAX_SIDE px (längste Seite) als JPEG."""
+    """Verkleinert auf max. IMAGE_MAX_SIDE px (längste Seite) als WebP."""
     with Image.open(io.BytesIO(raw)) as img:
         img = ImageOps.exif_transpose(img)
         img.thumbnail((IMAGE_MAX_SIDE, IMAGE_MAX_SIDE))
         if img.mode != "RGB":
             img = img.convert("RGB")
         out = io.BytesIO()
-        img.save(out, format="JPEG", quality=IMAGE_JPEG_QUALITY, optimize=True)
+        img.save(out, format="WEBP", quality=IMAGE_QUALITY, method=6)
         return out.getvalue()
 
 
@@ -107,7 +107,7 @@ class Database:
         await self.pool.close()
 
     async def save(self, record: dict, image: bytes | None) -> tuple[int | None, str]:
-        """Speichert die Nachricht samt verkleinertem Bild (JPEG).
+        """Speichert die Nachricht samt verkleinertem Bild (WebP).
 
         Hat derselbe Absender genau diesen Text mit genau diesem Bild (bzw. ohne
         Bild) schon einmal geschickt, wird nur das Datum des vorhandenen Eintrags
