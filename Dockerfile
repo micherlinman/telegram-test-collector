@@ -23,4 +23,5 @@ ENV TELEGRAM_SESSION=/data/collector \
 VOLUME /data
 
 EXPOSE 8000
+# Standard: beides zusammen; docker-compose.yml startet sie als getrennte Dienste
 CMD ["./start.sh"]

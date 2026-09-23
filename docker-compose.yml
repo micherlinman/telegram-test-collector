@@ -1,23 +1,39 @@
+# Web-Oberfläche: https://telegram.jcluster.de
+# (Eintrag im Caddyfile von jstack-core: reverse_proxy telegram-web:8000)
+
+x-common: &common
+  build: .
+  image: telegram-test-collector
+  env_file: .env
+  restart: unless-stopped
+
 services:
-  app:
-    build: .
+  collector:
+    <<: *common
     container_name: telegram-collector
-    env_file: .env
+    command: ["python", "collector.py"]
     environment:
       TELEGRAM_SESSION: /data/collector
       MESSAGE_LOG_FILE: /data/messages.jsonl
       TEXT_LOG_FILE: /data/messages.log
       MEDIA_DIR: /data/media
+    # Session, Logs und Originalbilder – bleiben bei Rebuilds erhalten
     volumes:
       - ./data:/data
-    # Kein Host-Port: erreichbar nur über Caddy (jstack-core) unter telegram.jcluster.de
+    # Für den QR-Login beim allerersten Start (docker attach telegram-collector)
+    stdin_open: true
+    tty: true
+
+  web:
+    <<: *common
+    container_name: telegram-web
+    command: ["uvicorn", "web:app", "--host", "0.0.0.0", "--port", "8000"]
+    # Kein Host-Port: erreichbar nur über den Caddy aus jstack-core
     expose:
       - "8000"
     networks:
+      - default
       - edge
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
 
 networks:
   edge:
